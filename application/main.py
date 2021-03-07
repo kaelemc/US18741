@@ -1,5 +1,9 @@
 import datetime
 
+fines = [0, 30, 80, 120, 170, 230, 300, 400, 510, 630]
+
+speedLimit = 80
+
 # file reading
 filePath = "data/tdata-csv.csv"
 
@@ -18,12 +22,6 @@ elif filePath.endswith("csv"):
         item[1] = item[1][:-1] # strip the newline register of the end of the string
 else:
     raise TypeError("Incompatible File Type")
-
-# fines
-fines_file = open("data/fines.txt", "r")
-fines = []
-for line in fines_file.readlines():
-    fines.append(line.split())
 
 # helper functions
 def CalculateDuration(timeIn, timeOut):
@@ -65,17 +63,22 @@ def RemoveDuplicates(list):
 def CalculateAvgSpeed(duration_mins, distance_mtrs):
     return (distance_mtrs / 1000) / (duration_mins / 60)
 
+def CalculateFines(speed):
+    over = speed - speedLimit
+    if over > 45:
+        return fines[9]
+    if over > 10 and over < 45:
+        return fines[round(over/5)]
+    
 g = RemoveDuplicates(FindTimeInOut(reg_time))
 
 t_distance = 2690
 
-redStart = '\033[91m'
-redEnd = '\033[0m'
-
 for i, item in enumerate(g):
     speed = CalculateAvgSpeed(TimeToIntMins(CalculateDuration(StrToTime(item[1]), StrToTime(item[2]))), t_distance)
+    fine = CalculateFines(speed)
     if speed < 0:
-        print(redStart + item[0],"did not exit" + redEnd)
+        print(item[0],"did not exit")
     else:
         # plate, in, out, duration, speed
-        print("{}\t{}\t{}\t{}\t  {:.2f}km/h".format(item[0], item[1], item[2], CalculateDuration(StrToTime(item[1]), StrToTime(item[2])), speed))
+        print("{}\t{}\t{}\t{}\t  {:.2f}km/h\t{}".format(item[0], item[1], item[2], CalculateDuration(StrToTime(item[1]), StrToTime(item[2])), speed, fine))
