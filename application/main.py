@@ -1,15 +1,22 @@
 import datetime
 
-fines = [0, 30, 80, 120, 170, 230, 300, 400, 510, 630]
+fine_ranges = [[11,15],[16,20],[21,25],[26,31],[31,35],[36,40],[41,45]]
+fines = [30, 80, 120, 170, 230, 300, 400, 510, 630]
 
-speedLimit = 80
+speed_limit = 80
+exit_threshold_mins = 4
+t_distance = 2690
 
 # file reading
 filePath = "data/tdata-csv.csv"
 
 reg_time = []
 
-file_read = open(filePath, "r")
+try:
+    file_read = open(filePath, "r")
+except:
+    raise FileNotFoundError("File couldn't be opened")
+
 if filePath.endswith("txt"):
     for line in file_read.readlines():
         line_data = line.split()
@@ -19,14 +26,11 @@ elif filePath.endswith("csv"):
         line_data = line.split(",")
         reg_time.append(line_data)
     for i, item in enumerate(reg_time):
-        item[1] = item[1][:-1] # strip the newline register of the end of the string
+        item[1] = item[1].strip("\n") # strip the newline register of the end of the string
 else:
     raise TypeError("Incompatible File Type")
 
 # helper functions
-def CalculateDuration(timeIn, timeOut):
-    return datetime.datetime.combine(datetime.date.today(), timeOut) - datetime.datetime.combine(datetime.date.today(), timeIn)
-
 def StrToTime(time):
     return datetime.datetime.strptime(time, "%H:%M:%S").time()
 
@@ -60,25 +64,68 @@ def RemoveDuplicates(list):
     
     return new_list
 
-def CalculateAvgSpeed(duration_mins, distance_mtrs):
-    return (distance_mtrs / 1000) / (duration_mins / 60)
+def CalculateDuration(timeIn, timeOut) -> datetime.time:
+    min_date = datetime.date.min
+    return datetime.datetime.combine(min_date, timeOut) - datetime.datetime.combine(min_date, timeIn)
 
+def CalculateAvgSpeed(duration_mins):
+    return (t_distance / 1000) / (duration_mins / 60)
+
+# fines are calculated by reversing through the fine range list until the speed is met
 def CalculateFines(speed):
-    over = speed - speedLimit
-    if over > 45:
-        return fines[9]
-    if over > 10 and over < 45:
-        return fines[round(over/5)]
-    
-g = RemoveDuplicates(FindTimeInOut(reg_time))
-
-t_distance = 2690
-
-for i, item in enumerate(g):
-    speed = CalculateAvgSpeed(TimeToIntMins(CalculateDuration(StrToTime(item[1]), StrToTime(item[2]))), t_distance)
-    fine = CalculateFines(speed)
-    if speed < 0:
-        print(item[0],"did not exit")
+    over = speed - speed_limit
+    if over == 0:
+        return None
+    elif over > fine_ranges[len(fine_ranges)-1][0]:
+        return fines[len(fines)-1]    # return the last fine in the list
     else:
-        # plate, in, out, duration, speed
-        print("{}\t{}\t{}\t{}\t  {:.2f}km/h\t{}".format(item[0], item[1], item[2], CalculateDuration(StrToTime(item[1]), StrToTime(item[2])), speed, fine))
+        for i, x in reversed(list(enumerate(fine_ranges))):
+            if over >= fine_ranges[i][0]:
+                return fines[i]
+                break
+
+def GenerateFines(rtimes_list_in):
+    rds_list_out = rtimes_list_in   # reg, duration, speed
+    global errors
+    errors = []
+    for i, item in enumerate(rds_list_out):
+        duration = CalculateDuration(StrToTime(item[1]), StrToTime(item[2]))
+        speed = CalculateAvgSpeed(TimeToIntMins(duration))
+        fine = CalculateFines(speed)
+
+        item.append(str(duration))
+        item.append(speed)
+        item.append(fine)
+
+        if speed < 0:
+            errors.append(item)
+            errors[len(errors)].append("Vehicle did not exit")
+        elif TimeToIntMins(duration) >= exit_threshold_mins:
+            errors.append(item)
+            errors[len(errors)-1].append("Vehicle did not leave after {} minute exit threshold!".format(exit_threshold_mins))
+        
+    return rds_list_out
+
+
+a = GenerateFines(RemoveDuplicates(FindTimeInOut(reg_time)))
+
+write_file = open("data/out/fines_out.txt", "w")
+error_write_file = open("data/out/errors_out.txt", "w")
+
+write_file.write("    Rego\t Time In\t Time Out\t Duration\t Speed\t\t Fine\n")
+for i, item in enumerate(a):
+    if item[5] == None:
+        output_string = "{}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\n".format(i,item[0], item[1], item[2], item[3], item[4], item[5])
+    else:
+        output_string = "{}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t ${}\n".format(i,item[0], item[1], item[2], item[3], item[4], item[5])
+    print(output_string)
+    write_file.write(output_string)
+
+error_write_file.write("\tRego\t Time In\t Time Out\t Duration\t Speed\t\t Fine\t Error Message\n")
+for i,item in enumerate(errors):
+    if item[5] == None:
+        output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
+    else:
+         output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t ${}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
+    print(output_string)
+    error_write_file.write(output_string)
