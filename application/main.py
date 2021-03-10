@@ -3,8 +3,6 @@ import datetime
 fine_ranges = [[11,15],[16,20],[21,25],[26,31],[31,35],[36,40],[41,45]]
 fines = [30, 80, 120, 170, 230, 300, 400, 510, 630]
 
-illegal_chars = " !@#$%^&*()|}{[]\<>?,./"
-
 speed_limit = 80
 exit_threshold_mins = 4
 t_distance = 2690
@@ -23,7 +21,7 @@ except:
 if filePath.endswith("txt"):
     for line in file_read.readlines():
         line_data = line.split()
-        if len(line_data[0]) < 6 and line_data[0].isalnum() == True:
+        if len(line_data[0]) <= 6 and line_data[0].isalnum() == True:
             reg_time.append(line_data)  
         else:
             line_data.pop(1)
@@ -32,7 +30,7 @@ if filePath.endswith("txt"):
 elif filePath.endswith("csv"):
     for line in file_read.readlines():
         line_data = line.split(",")
-        if len(line_data[0]) < 6 and line_data[0].isalnum() == True:
+        if len(line_data[0]) < 7 and line_data[0].isalnum() == True:
             reg_time.append(line_data)
         else:
             line_data.pop(1)
@@ -128,15 +126,14 @@ for i, item in enumerate(a):
         output_string = "{}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\n".format(i,item[0], item[1], item[2], item[3], item[4], item[5])
     else:
         output_string = "{}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t ${}\n".format(i,item[0], item[1], item[2], item[3], item[4], item[5])
-    print(output_string)
+    print(output_string.strip("\n"))
     write_file.write(output_string)
 
 for i,item in enumerate(errors):
-    if len(item) > 1:
-        output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
-    elif item[5] == None:
-         output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t ${}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
+    if len(item) <= 2:
+        output_string = "Err {}.  {}\t {}\n".format(i, item[0], item[1])
     else:
-        output_string = "Err {}.  {}\t {}".format(i, item[0], item[1])
-    print(output_string)
+         output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
+
+    print(output_string.strip("\n"))
     error_write_file.write(output_string)
