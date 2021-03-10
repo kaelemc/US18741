@@ -3,6 +3,8 @@ import datetime
 fine_ranges = [[11,15],[16,20],[21,25],[26,31],[31,35],[36,40],[41,45]]
 fines = [30, 80, 120, 170, 230, 300, 400, 510, 630]
 
+illegal_chars = " !@#$%^&*()|}{[]\<>?,./"
+
 speed_limit = 80
 exit_threshold_mins = 4
 t_distance = 2690
@@ -11,6 +13,7 @@ t_distance = 2690
 filePath = "data/tdata-csv.csv"
 
 reg_time = []
+errors = []
 
 try:
     file_read = open(filePath, "r")
@@ -20,15 +23,25 @@ except:
 if filePath.endswith("txt"):
     for line in file_read.readlines():
         line_data = line.split()
-        reg_time.append(line_data)
+        if len(line_data[0]) < 6 and line_data[0].isalnum() == True:
+            reg_time.append(line_data)  
+        else:
+            line_data.pop(1)
+            line_data.append("Invalid License Plate")
+            errors.append(line_data)      
 elif filePath.endswith("csv"):
     for line in file_read.readlines():
         line_data = line.split(",")
-        reg_time.append(line_data)
+        if len(line_data[0]) < 6 and line_data[0].isalnum() == True:
+            reg_time.append(line_data)
+        else:
+            line_data.pop(1)
+            line_data.append("Invalid License Plate")
+            errors.append(line_data)  
     for i, item in enumerate(reg_time):
         item[1] = item[1].strip("\n") # strip the newline register of the end of the string
 else:
-    raise TypeError("Incompatible File Type")
+    raise errors("Incompatible File Type")
 
 # helper functions
 def StrToTime(time):
@@ -55,7 +68,7 @@ def FindTimeInOut(reg_list):
 
 def RemoveDuplicates(list):
     new_list = list
-    
+
     for i, item in enumerate(new_list):
         for x in range(i+1, len(new_list)):
             if new_list[x][0] in item[0]:
@@ -86,8 +99,6 @@ def CalculateFines(speed):
 
 def GenerateFines(rtimes_list_in):
     rds_list_out = rtimes_list_in   # reg, duration, speed
-    global errors
-    errors = []
     for i, item in enumerate(rds_list_out):
         duration = CalculateDuration(StrToTime(item[1]), StrToTime(item[2]))
         speed = CalculateAvgSpeed(TimeToIntMins(duration))
@@ -99,7 +110,7 @@ def GenerateFines(rtimes_list_in):
 
         if speed < 0:
             errors.append(item)
-            errors[len(errors)].append("Vehicle did not exit")
+            errors[len(errors)-1].append("Vehicle did not exit")
         elif TimeToIntMins(duration) >= exit_threshold_mins:
             errors.append(item)
             errors[len(errors)-1].append("Vehicle did not leave after {} minute exit threshold!".format(exit_threshold_mins))
@@ -112,20 +123,20 @@ a = GenerateFines(RemoveDuplicates(FindTimeInOut(reg_time)))
 write_file = open("data/out/fines_out.txt", "w")
 error_write_file = open("data/out/errors_out.txt", "w")
 
-write_file.write("    Rego\t Time In\t Time Out\t Duration\t Speed\t\t Fine\n")
 for i, item in enumerate(a):
-    if item[5] == None:
+    if len(item) > 2:
         output_string = "{}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\n".format(i,item[0], item[1], item[2], item[3], item[4], item[5])
     else:
         output_string = "{}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t ${}\n".format(i,item[0], item[1], item[2], item[3], item[4], item[5])
     print(output_string)
     write_file.write(output_string)
 
-error_write_file.write("\tRego\t Time In\t Time Out\t Duration\t Speed\t\t Fine\t Error Message\n")
 for i,item in enumerate(errors):
-    if item[5] == None:
+    if len(item) > 1:
         output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t {}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
-    else:
+    elif item[5] == None:
          output_string = "Err {}.  {}\t {}\t {}\t {}\t {:.2f}km/h\t ${}\t {}\n".format(i, item[0], item[1], item[2], item[3], item[4], item[5], item[6])
+    else:
+        output_string = "Err {}.  {}\t {}".format(i, item[0], item[1])
     print(output_string)
     error_write_file.write(output_string)
